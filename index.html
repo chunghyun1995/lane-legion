@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0d2347">
-<title>레인 레기온</title>
+<title>레인 레기온 3D</title>
+<meta name="description" content="입체 전장에서 병력을 모으고 적 군단을 막아내는 3D 러너 디펜스 게임. 모바일 드래그와 키보드로 플레이하세요.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
@@ -31,6 +32,12 @@
     box-shadow: 0 0 60px rgba(0,0,0,.55); overflow: hidden;
   }
   canvas { display: block; width: 100%; height: 100%; }
+  #scene3d { position: absolute; inset: 0; pointer-events: none; }
+  #c { position: absolute; inset: 0; }
+  [hidden] { display: none !important; }
+  .edition { font-size: 11px; font-weight: 900; letter-spacing: 4px; color: #aee5ec; margin: 6px 0 15px; }
+  .overlay { background: linear-gradient(180deg, rgba(6,16,36,.12), rgba(6,16,36,.7) 68%, rgba(6,16,36,.88)); }
+  @media (max-height: 700px) { .overlay { padding: 14px; } .emblem { width: 58px; height: 58px; } .title { font-size: 42px; } .tagline { margin: 8px 0 12px; font-size: 12px; } .ups { margin-top: 10px; } .hint { margin-top: 10px; } }
 
   .overlay {
     position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -39,7 +46,7 @@
     opacity: 0; pointer-events: none; transition: opacity .25s ease;
   }
   .overlay.show { opacity: 1; pointer-events: auto; }
-  .overlay > * { transform: translateY(8px); transition: transform .3s ease; }
+  .overlay > * { transform: translateY(8px); transition: transform .3s ease; flex-shrink: 0; }
   .overlay.show > * { transform: none; }
 
   /* ---------- title ---------- */
@@ -151,12 +158,23 @@
   }
   #pauseBtn svg { width: 14px; height: 14px; }
   #pauseBtn.show { display: grid; }
+  .overlay { overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; justify-content: safe center; }
+  @media (max-height: 700px) {
+    #menu:has(#saveCard:not([hidden])) .emblem,
+    #menu:has(#saveCard:not([hidden])) .tagline { display: none; }
+    .edition { margin: 6px 0 10px; }
+    .save-card { margin-bottom: 10px; }
+    .save-card div { padding: 6px 4px; }
+    .btn { font-size: 21px; padding: 10px 20px; }
+    .btn.ghost { font-size: 15px; padding: 8px 18px; }
+  }
 </style>
 </head>
 <body>
 <div id="wrap">
   <div id="stage">
-    <canvas id="c" aria-label="게임 화면"></canvas>
+    <canvas id="scene3d" aria-hidden="true"></canvas>
+    <canvas id="c" aria-label="3D 게임 화면"></canvas>
     <button id="pauseBtn" aria-label="일시정지"><svg viewBox="0 0 14 14" fill="#fff"><rect x="2" y="1" width="3.5" height="12" rx="1"/><rect x="8.5" y="1" width="3.5" height="12" rx="1"/></svg></button>
 
     <!-- title -->
@@ -172,6 +190,7 @@
         <path d="M27 38 L34 28 L41 38 M43 34 L50 24 L57 34 M59 38 L66 28 L73 38" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
       </svg>
       <h1 class="title">레인 <b>레기온</b></h1>
+      <div class="edition" id="graphicsMode">3D BATTLE EDITION</div>
       <div class="tagline">세 갈래 길에서 병력을 모으고, 무기를 챙기고, 적을 막아라!</div>
 
       <div class="save-card" id="saveCard" hidden>
@@ -226,6 +245,9 @@
   </div>
 </div>
 <script src="core.js"></script>
-<script src="main.js"></script>
+<script src="vendor/three.min.js"></script>
+<script src="render3d.js?v=3d1"></script>
+<script src="main.js?v=3d1"></script>
 </body>
 </html>
+

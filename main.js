@@ -8,11 +8,18 @@
 
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
+  const sceneCanvas = document.getElementById('scene3d');
+  const view3d = window.createLane3D ? window.createLane3D(sceneCanvas) : null;
+  if (!view3d) {
+    sceneCanvas.hidden = true;
+    document.getElementById('graphicsMode').textContent = '호환 모드';
+  }
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const rect = canvas.getBoundingClientRect();
     canvas.width = Math.max(1, Math.round(rect.width * dpr));
     canvas.height = Math.max(1, Math.round(rect.height * dpr));
+    if (view3d) view3d.resize();
   }
   window.addEventListener('resize', resize);
 
@@ -37,8 +44,8 @@
   // projection
   // =====================================================================
   const sc = z => D / (D + z);
-  const px = (x, z) => CX + x * RW * sc(z);
-  const py = z => HOR + (BASE - HOR) * sc(z);
+  const px = (x, z) => view3d ? view3d.project(x, z).x : CX + x * RW * sc(z);
+  const py = z => view3d ? view3d.project(0, z).y : HOR + (BASE - HOR) * sc(z);
   const fade = z => Math.max(0, Math.min(1, (C.ZFAR + 6 - z) / 9));
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 
@@ -299,7 +306,7 @@
     try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
   });
   canvas.addEventListener('pointermove', e => {
-    if (!drag || drag.id !== e.pointerId || !run) return;
+    if (mode !== 'play' || !drag || drag.id !== e.pointerId || !run) return;
     const rect = canvas.getBoundingClientRect();
     run.targetX += (e.clientX - drag.x) * (W / rect.width) / RW * 1.15;
     drag.x = e.clientX;
@@ -338,7 +345,7 @@
     if (save.gold >= cost) { save.gold -= cost; save.up[k] = (save.up[k] || 0) + 1; persist(); refreshMenu(); }
   });
   function showOverlay(id) {
-    ['menu', 'result', 'pause', 'confirm'].forEach(o => $(o).classList.toggle('show', o === id));
+    ['menu', 'result', 'pause', 'confirm'].forEach(o => { $(o).classList.toggle('show', o === id); $(o).inert = o !== id; });
     $('pauseBtn').classList.toggle('show', !id && mode === 'play');
   }
   function refreshMenu() {
@@ -889,6 +896,19 @@
   function render() {
     const k = canvas.width / W;
     ctx.setTransform(k, 0, 0, k, 0, 0);
+    if (view3d) {
+      ctx.clearRect(0, 0, W, H);
+      view3d.render(run, clock);
+      if (run) {
+        drawFx();
+        if (run.troops > 0) drawTroopBadge();
+        drawBanners(); drawHud();
+        ctx.font = "11px 'Noto Sans KR', sans-serif"; ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(15,35,48,.72)';
+        ctx.fillText('병력 증강', 72, H - 23); ctx.fillText('적 군단', 210, H - 23); ctx.fillText('특수 무기', 348, H - 23);
+      }
+      return;
+    }
     if (run && run.shake > 0) {
       const m = run.shake * 10;
       ctx.translate((Math.random() - 0.5) * m, (Math.random() - 0.5) * m);
@@ -940,7 +960,7 @@
   }
 
   // read-only hook for automated testing
-  window.__lane = { get run() { return run; }, get mode() { return mode; } };
+  window.__lane = { get run() { return run; }, get mode() { return mode; }, get graphics() { return view3d ? '3d' : '2d'; }, get renderInfo() { return view3d && view3d.info; } };
 
   resize();
   refreshMenu();
@@ -948,3 +968,4 @@
   requestAnimationFrame(t => { last = t; frame(t); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(resize);
 })();
+
