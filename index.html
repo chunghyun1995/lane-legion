@@ -2,8 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta name="theme-color" content="#1d6fd1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d2347">
 <title>레인 레기온</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,96 +12,216 @@
   :root {
     --blue: #2d7ff0;
     --blue-d: #1a4fa6;
+    --navy: #0d2347;
     --red: #e0392f;
     --gold: #ffcc2e;
-    --ink: #10213d;
-    --panel: rgba(12, 28, 58, 0.86);
+    --gold-d: #a86c00;
+    --panel: rgba(10, 24, 52, 0.82);
+    --line: rgba(255, 255, 255, 0.12);
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; height: 100%; background: #0c1a33; overflow: hidden; touch-action: none; }
-  body { font-family: 'Noto Sans KR', system-ui, sans-serif; color: #fff; user-select: none; -webkit-user-select: none; }
+  html, body { margin: 0; height: 100%; overflow: hidden; touch-action: none; }
+  body {
+    font-family: 'Noto Sans KR', system-ui, sans-serif; color: #fff; user-select: none; -webkit-user-select: none;
+    background: radial-gradient(120% 80% at 50% 0%, #17396e 0%, #0a1830 60%, #060f1f 100%);
+  }
   #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
-  #stage { position: relative; height: 100%; aspect-ratio: 420 / 760; max-width: 100%; }
+  #stage {
+    position: relative; height: 100%; aspect-ratio: 420 / 760; max-width: 100%;
+    box-shadow: 0 0 60px rgba(0,0,0,.55); overflow: hidden;
+  }
   canvas { display: block; width: 100%; height: 100%; }
+
   .overlay {
-    position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
-    padding: 24px 18px; background: linear-gradient(180deg, rgba(8,20,44,.55), rgba(8,20,44,.88));
-    text-align: center;
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px 20px; text-align: center;
+    background: linear-gradient(180deg, rgba(6,16,36,.35) 0%, rgba(6,16,36,.78) 55%, rgba(6,16,36,.92) 100%);
+    opacity: 0; pointer-events: none; transition: opacity .25s ease;
   }
-  .overlay.show { display: flex; }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .overlay > * { transform: translateY(8px); transition: transform .3s ease; }
+  .overlay.show > * { transform: none; }
+
+  /* ---------- title ---------- */
+  .emblem { width: 92px; height: 92px; margin-bottom: 6px; filter: drop-shadow(0 8px 16px rgba(0,0,0,.45)); }
   .title {
-    font-family: 'Black Han Sans', sans-serif; font-size: clamp(44px, 12vw, 64px); line-height: 1; letter-spacing: 1px;
-    color: #fff; text-shadow: 0 4px 0 var(--blue-d), 0 8px 18px rgba(0,0,0,.45);
-    margin: 0 0 6px;
+    font-family: 'Black Han Sans', sans-serif; font-size: clamp(46px, 12.5vw, 66px); line-height: .95; letter-spacing: 1px;
+    margin: 0; color: #fff;
+    text-shadow: 0 3px 0 #2a63c4, 0 6px 0 #173e86, 0 12px 22px rgba(0,0,0,.5);
   }
-  .title b { color: var(--gold); text-shadow: 0 4px 0 #a86c00, 0 8px 18px rgba(0,0,0,.45); font-weight: 400; }
-  .sub { opacity: .85; font-size: 14px; margin-bottom: 22px; }
-  .big-result { font-family: 'Black Han Sans', sans-serif; font-size: 52px; margin: 0 0 4px; }
-  .win { color: var(--gold); text-shadow: 0 4px 0 #a86c00; }
-  .lose { color: #ff6a5c; text-shadow: 0 4px 0 #7a1712; }
-  .stats { display: flex; gap: 10px; margin: 10px 0 18px; }
-  .stat { background: var(--panel); border-radius: 12px; padding: 8px 14px; min-width: 88px; }
-  .stat small { display: block; opacity: .7; font-size: 11px; }
-  .stat span { font-weight: 900; font-size: 20px; }
+  .title b { color: var(--gold); font-weight: 400; text-shadow: 0 3px 0 #d58f00, 0 6px 0 #8a5a00, 0 12px 22px rgba(0,0,0,.5); }
+  .tagline { opacity: .82; font-size: 13.5px; margin: 10px 0 20px; letter-spacing: .2px; }
+
+  /* ---------- save card ---------- */
+  .save-card {
+    width: 100%; max-width: 340px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin-bottom: 16px;
+  }
+  .save-card div { background: var(--panel); padding: 9px 4px 8px; }
+  .save-card small { display: block; font-size: 11px; opacity: .65; margin-bottom: 2px; }
+  .save-card span { font-family: 'Black Han Sans', sans-serif; font-size: 21px; }
+
+  /* ---------- buttons ---------- */
+  .btns { display: flex; flex-direction: column; align-items: stretch; gap: 10px; width: 100%; max-width: 300px; }
   .btn {
-    font-family: 'Black Han Sans', sans-serif; font-size: 26px; color: #fff; border: 0; cursor: pointer;
-    padding: 14px 44px; border-radius: 16px; background: linear-gradient(180deg, #4b9bff, #2368d8);
-    box-shadow: 0 6px 0 #133f8c, 0 10px 20px rgba(0,0,0,.35); margin: 6px 0; transition: transform .08s;
+    font-family: 'Black Han Sans', sans-serif; font-size: 25px; color: #fff; border: 0; cursor: pointer;
+    padding: 13px 24px 14px; border-radius: 16px; position: relative;
+    background: linear-gradient(180deg, #5aa8ff 0%, #2f7cf0 45%, #2163d4 100%);
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.35), 0 6px 0 #123b84, 0 12px 22px rgba(0,0,0,.35);
+    transition: transform .08s, box-shadow .08s, filter .15s;
   }
-  .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #133f8c; }
-  .btn.alt { background: linear-gradient(180deg, #ffd54a, #f0a610); color: #3a2400; box-shadow: 0 6px 0 #a06a00, 0 10px 20px rgba(0,0,0,.35); font-size: 20px; padding: 10px 30px; }
+  .btn small { display: block; font-family: 'Noto Sans KR', sans-serif; font-size: 12px; font-weight: 700; opacity: .85; margin-top: 1px; }
+  .btn:hover { filter: brightness(1.06); }
+  .btn:active { transform: translateY(4px); box-shadow: inset 0 2px 0 rgba(255,255,255,.35), 0 2px 0 #123b84, 0 4px 10px rgba(0,0,0,.3); }
+  .btn.gold {
+    color: #3a2400; background: linear-gradient(180deg, #ffe27a 0%, #ffc531 50%, #f0a210 100%);
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.5), 0 6px 0 #9a6100, 0 12px 22px rgba(0,0,0,.35);
+  }
+  .btn.gold:active { box-shadow: inset 0 2px 0 rgba(255,255,255,.5), 0 2px 0 #9a6100; }
+  .btn.ghost {
+    font-size: 17px; padding: 10px 18px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.2);
+    box-shadow: none;
+  }
+  .btn.ghost:active { transform: translateY(2px); box-shadow: none; }
+  .btn.danger { background: linear-gradient(180deg, #ff7a6b, #e0392f 55%, #b8241b); box-shadow: inset 0 2px 0 rgba(255,255,255,.3), 0 6px 0 #6d140e; }
   .btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
-  .ups { width: 100%; max-width: 360px; background: var(--panel); border-radius: 16px; padding: 12px; margin: 12px 0 14px; }
-  .ups-head { display: flex; justify-content: space-between; align-items: center; margin: 0 4px 8px; font-weight: 900; }
-  .gold { color: var(--gold); font-weight: 900; }
-  .up { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; background: rgba(255,255,255,.06); margin-top: 6px; text-align: left; }
-  .up .ic { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-size: 22px; background: rgba(45,127,240,.35); flex: none; }
-  .up .tx { flex: 1; min-width: 0; }
-  .up .tx b { display: block; font-size: 15px; }
-  .up .tx small { opacity: .75; font-size: 12px; }
+  .row { display: flex; gap: 10px; }
+  .row .btn { flex: 1; }
+
+  /* ---------- upgrades ---------- */
+  .ups {
+    width: 100%; max-width: 340px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 16px; padding: 10px 10px 8px; margin: 16px 0 0;
+    backdrop-filter: blur(4px);
+  }
+  .ups-head { display: flex; justify-content: space-between; align-items: center; margin: 0 4px 6px; font-weight: 900; font-size: 14px; }
+  .coin { display: inline-flex; align-items: center; gap: 5px; color: var(--gold); font-weight: 900; }
+  .coin::before {
+    content: ''; width: 13px; height: 13px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff3b0, #ffcc2e 45%, #c98a00 100%);
+    box-shadow: inset 0 0 0 2px rgba(150,95,0,.55);
+  }
+  .up-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .up {
+    display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 8px; border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.07);
+    text-align: left;
+  }
+  .up .top { display: flex; align-items: center; gap: 8px; }
+  .up .ic { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; font-size: 17px; background: rgba(45,127,240,.3); flex: none; }
+  .up .tx { min-width: 0; }
+  .up .tx b { display: block; font-size: 13px; line-height: 1.2; }
+  .up .tx small { display: block; opacity: .7; font-size: 10.5px; line-height: 1.25; }
   .up button {
-    flex: none; border: 0; border-radius: 10px; padding: 8px 10px; min-width: 78px; font-weight: 900; font-family: inherit; font-size: 14px;
-    background: linear-gradient(180deg, #ffd54a, #f0a610); color: #3a2400; cursor: pointer; box-shadow: 0 3px 0 #a06a00;
+    border: 0; border-radius: 9px; padding: 6px 6px; font-weight: 900; font-family: inherit; font-size: 13px;
+    background: linear-gradient(180deg, #ffe27a, #f0a610); color: #3a2400; cursor: pointer; box-shadow: 0 3px 0 #9a6100;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
   }
-  .up button:disabled { filter: grayscale(1); opacity: .5; cursor: default; }
-  .hint { font-size: 13px; opacity: .75; margin-top: 10px; line-height: 1.5; }
+  .up button::before {
+    content: ''; width: 10px; height: 10px; border-radius: 50%; background: #8a5a00; opacity: .6;
+  }
+  .up button:active { transform: translateY(2px); box-shadow: 0 1px 0 #9a6100; }
+  .up button:disabled { filter: grayscale(1); opacity: .45; cursor: default; transform: none; }
+
+  .hint { font-size: 12px; opacity: .65; margin-top: 14px; line-height: 1.6; }
+  .kbd { display: inline-block; padding: 0 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,.3); font-size: 11px; }
+
+  /* ---------- result ---------- */
+  .big-result { font-family: 'Black Han Sans', sans-serif; font-size: 58px; margin: 0; line-height: 1; }
+  .win { color: var(--gold); text-shadow: 0 3px 0 #d58f00, 0 6px 0 #8a5a00, 0 12px 22px rgba(0,0,0,.5); }
+  .lose { color: #ff6a5c; text-shadow: 0 3px 0 #b3261c, 0 6px 0 #6d140e, 0 12px 22px rgba(0,0,0,.5); }
+  .res-sub { opacity: .85; font-size: 14px; margin: 8px 0 16px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 340px; margin-bottom: 18px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 4px; }
+  .stat small { display: block; opacity: .65; font-size: 11px; }
+  .stat span { font-family: 'Black Han Sans', sans-serif; font-size: 22px; }
+
+  /* ---------- dialog ---------- */
+  .dialog {
+    width: 100%; max-width: 320px; background: #10264d; border: 1px solid rgba(255,255,255,.15);
+    border-radius: 18px; padding: 22px 18px 18px; box-shadow: 0 20px 50px rgba(0,0,0,.5);
+  }
+  .dialog h2 { font-family: 'Black Han Sans', sans-serif; font-weight: 400; font-size: 26px; margin: 0 0 8px; }
+  .dialog p { margin: 0 0 18px; font-size: 14px; opacity: .85; line-height: 1.5; }
+  .dialog .btn { font-size: 19px; padding: 10px 12px; }
+
   #pauseBtn {
-    position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border-radius: 10px; border: 0;
-    background: rgba(10,25,50,.55); color: #fff; font-size: 16px; cursor: pointer; display: none;
+    position: absolute; top: 12px; right: 12px; width: 38px; height: 38px; border-radius: 12px; border: 1px solid rgba(255,255,255,.15);
+    background: rgba(8,20,44,.6); color: #fff; cursor: pointer; display: none; place-items: center; padding: 0;
   }
+  #pauseBtn svg { width: 14px; height: 14px; }
+  #pauseBtn.show { display: grid; }
 </style>
 </head>
 <body>
 <div id="wrap">
   <div id="stage">
     <canvas id="c" aria-label="게임 화면"></canvas>
-    <button id="pauseBtn" aria-label="일시정지">❚❚</button>
+    <button id="pauseBtn" aria-label="일시정지"><svg viewBox="0 0 14 14" fill="#fff"><rect x="2" y="1" width="3.5" height="12" rx="1"/><rect x="8.5" y="1" width="3.5" height="12" rx="1"/></svg></button>
 
+    <!-- title -->
     <div class="overlay show" id="menu">
+      <svg class="emblem" viewBox="0 0 100 100" aria-hidden="true">
+        <defs>
+          <linearGradient id="sh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5aa8ff"/><stop offset="1" stop-color="#1c56c0"/></linearGradient>
+          <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset="1" stop-color="#d48a00"/></linearGradient>
+        </defs>
+        <path d="M50 4 L88 16 V46 C88 70 70 88 50 96 C30 88 12 70 12 46 V16 Z" fill="url(#rim)"/>
+        <path d="M50 12 L80 22 V46 C80 66 66 80 50 87 C34 80 20 66 20 46 V22 Z" fill="url(#sh)"/>
+        <path d="M34 30 V70 M50 26 V74 M66 30 V70" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".9"/>
+        <path d="M27 38 L34 28 L41 38 M43 34 L50 24 L57 34 M59 38 L66 28 L73 38" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
       <h1 class="title">레인 <b>레기온</b></h1>
-      <div class="sub">좌우로 움직여 병력을 불리고, 몰려오는 적을 섬멸하라!</div>
-      <button class="btn" id="startBtn">출격</button>
-      <div class="ups" data-ups></div>
-      <div class="hint">드래그 · ← → · A/D 로 이동<br>게이트를 쏘면 숫자가 커집니다</div>
+      <div class="tagline">세 갈래 길에서 병력을 모으고, 무기를 챙기고, 적을 막아라!</div>
+
+      <div class="save-card" id="saveCard" hidden>
+        <div><small>현재 스테이지</small><span id="scStage">1</span></div>
+        <div><small>최고 기록</small><span id="scBest">1</span></div>
+        <div><small>보유 골드</small><span id="scGold" style="color:var(--gold)">0</span></div>
+      </div>
+
+      <div class="btns">
+        <button class="btn" id="continueBtn" hidden>이어하기<small id="continueSub">스테이지 1부터</small></button>
+        <button class="btn" id="startBtn">게임 시작</button>
+        <button class="btn ghost" id="newBtn" hidden>새로하기</button>
+      </div>
+      <div class="ups" data-ups id="menuUps" hidden></div>
+      <div class="hint">드래그 또는 <span class="kbd">←</span> <span class="kbd">→</span> 로 이동 · 일시정지 <span class="kbd">Esc</span></div>
     </div>
 
+    <!-- result -->
     <div class="overlay" id="result">
       <div class="big-result" id="resTitle">승리!</div>
-      <div id="resSub" class="sub" style="margin-bottom:0"></div>
+      <div id="resSub" class="res-sub"></div>
       <div class="stats">
-        <div class="stat"><small>획득 골드</small><span id="resGold" class="gold">0</span></div>
+        <div class="stat"><small>획득 골드</small><span id="resGold" style="color:var(--gold)">0</span></div>
         <div class="stat"><small>처치</small><span id="resKills">0</span></div>
         <div class="stat"><small>최대 병력</small><span id="resPeak">0</span></div>
       </div>
-      <button class="btn" id="nextBtn">다음 스테이지</button>
+      <div class="btns"><button class="btn" id="nextBtn">다음 스테이지</button></div>
       <div class="ups" data-ups></div>
-      <button class="btn alt" id="homeBtn">메인으로</button>
+      <div class="btns" style="margin-top:12px"><button class="btn ghost" id="homeBtn">메인으로</button></div>
     </div>
 
+    <!-- pause -->
     <div class="overlay" id="pause">
-      <div class="big-result">일시정지</div>
-      <button class="btn" id="resumeBtn">계속하기</button>
-      <button class="btn alt" id="quitBtn">포기하기</button>
+      <div class="big-result" style="margin-bottom:22px">일시정지</div>
+      <div class="btns">
+        <button class="btn" id="resumeBtn">계속하기</button>
+        <button class="btn ghost" id="quitBtn">포기하고 나가기</button>
+      </div>
+    </div>
+
+    <!-- new game confirm -->
+    <div class="overlay" id="confirm">
+      <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="cfTitle">
+        <h2 id="cfTitle">새로 시작할까요?</h2>
+        <p>저장된 스테이지, 골드, 업그레이드가 모두 지워지고 스테이지 1부터 시작합니다.</p>
+        <div class="row">
+          <button class="btn ghost" id="cfNo">취소</button>
+          <button class="btn danger" id="cfYes">새로 시작</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>

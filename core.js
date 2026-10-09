@@ -105,7 +105,7 @@
       troops: st.startTroops,
       sx: 0, targetX: 0,
       fireAcc: 0, scroll: 0,
-      arrows: [], enemies: [], blocks: [], crates: [], fx: [],
+      arrows: [], enemies: [], blocks: [], crates: [], items: [], fx: [],
       abilities: {},          // key -> seconds left
       boltT: 0,
       boss: null, bossSpawned: false,
@@ -153,7 +153,7 @@
     return { type, x, z, r: 0.05, hp, maxHp: hp, power: 1, flash: 0, alive: true, walk: Math.random() * 6 };
   }
 
-  function addFx(run, fx) { if (run.fx.length < 320) run.fx.push(fx); }
+  function addFx(run, fx) { if (run.fx.length < 320) { fx.seed = Math.random() * 1000; run.fx.push(fx); } }
 
   function damageEnemy(run, e, dmg) {
     e.hp -= dmg; e.flash = 1;
@@ -242,6 +242,16 @@
     // scroll blocks / crates
     for (const b of run.blocks) { b.z -= SPEED * dt; b.flash = Math.max(0, b.flash - dt * 4); }
     for (const c of run.crates) { c.z -= SPEED * dt; c.flash = Math.max(0, c.flash - dt * 6); }
+    for (const it of run.items) {
+      it.z -= SPEED * dt; it.t += dt;
+      if (!it.alive) continue;
+      if (it.z <= 0.35 + r * 0.6 && it.z > -0.6 && Math.abs(it.x - run.sx) < r + 0.2) pickItem(run, it);
+      else if (it.z <= -0.6) {
+        it.alive = false;
+        addFx(run, { kind: 'text', x: it.x, z: 0.4, t: 0, life: 0.8, text: '놓침', color: '#c9c9c9' });
+      }
+    }
+    run.items = run.items.filter(it => it.alive);
 
     // enemies
     for (const e of run.enemies) {
@@ -381,11 +391,19 @@
     if (c.hp <= 0 && c.alive) {
       c.alive = false;
       const ab = ABILITIES[c.ability];
-      run.abilities[c.ability] = (run.abilities[c.ability] || 0) + run.st.skillTime;
+      // the crate breaks open and drops an item the squad has to run over
+      run.items.push({ x: laneCenter(1), z: Math.max(c.z, 1.5), ability: c.ability, t: 0, alive: true });
+      addFx(run, { kind: 'debris', x: laneCenter(1), z: c.z, t: 0, life: 0.8 });
       addFx(run, { kind: 'burst', x: laneCenter(1), z: c.z, t: 0, life: 0.5, big: true, color: ab.color });
-      addFx(run, { kind: 'text', x: laneCenter(1) - 0.1, z: c.z, t: 0, life: 1.4, text: ab.name + '!', color: ab.color, big: true });
-      addFx(run, { kind: 'banner', t: 0, life: 1.6, text: ab.icon + ' ' + ab.name, color: ab.color });
     }
+  }
+
+  function pickItem(run, it) {
+    it.alive = false;
+    const ab = ABILITIES[it.ability];
+    run.abilities[it.ability] = (run.abilities[it.ability] || 0) + run.st.skillTime;
+    addFx(run, { kind: 'ring', x: run.sx, z: 0.1, t: 0, life: 0.6, color: ab.color });
+    addFx(run, { kind: 'banner', t: 0, life: 1.6, text: ab.icon + ' ' + ab.name, color: ab.color });
   }
 
   function updateFx(run, dt) {
