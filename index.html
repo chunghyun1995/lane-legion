@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#1d6fd1">
+<title>레인 레기온</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue: #2d7ff0;
+    --blue-d: #1a4fa6;
+    --red: #e0392f;
+    --gold: #ffcc2e;
+    --ink: #10213d;
+    --panel: rgba(12, 28, 58, 0.86);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #0c1a33; overflow: hidden; touch-action: none; }
+  body { font-family: 'Noto Sans KR', system-ui, sans-serif; color: #fff; user-select: none; -webkit-user-select: none; }
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  #stage { position: relative; height: 100%; aspect-ratio: 420 / 760; max-width: 100%; }
+  canvas { display: block; width: 100%; height: 100%; }
+  .overlay {
+    position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px 18px; background: linear-gradient(180deg, rgba(8,20,44,.55), rgba(8,20,44,.88));
+    text-align: center;
+  }
+  .overlay.show { display: flex; }
+  .title {
+    font-family: 'Black Han Sans', sans-serif; font-size: clamp(44px, 12vw, 64px); line-height: 1; letter-spacing: 1px;
+    color: #fff; text-shadow: 0 4px 0 var(--blue-d), 0 8px 18px rgba(0,0,0,.45);
+    margin: 0 0 6px;
+  }
+  .title b { color: var(--gold); text-shadow: 0 4px 0 #a86c00, 0 8px 18px rgba(0,0,0,.45); font-weight: 400; }
+  .sub { opacity: .85; font-size: 14px; margin-bottom: 22px; }
+  .big-result { font-family: 'Black Han Sans', sans-serif; font-size: 52px; margin: 0 0 4px; }
+  .win { color: var(--gold); text-shadow: 0 4px 0 #a86c00; }
+  .lose { color: #ff6a5c; text-shadow: 0 4px 0 #7a1712; }
+  .stats { display: flex; gap: 10px; margin: 10px 0 18px; }
+  .stat { background: var(--panel); border-radius: 12px; padding: 8px 14px; min-width: 88px; }
+  .stat small { display: block; opacity: .7; font-size: 11px; }
+  .stat span { font-weight: 900; font-size: 20px; }
+  .btn {
+    font-family: 'Black Han Sans', sans-serif; font-size: 26px; color: #fff; border: 0; cursor: pointer;
+    padding: 14px 44px; border-radius: 16px; background: linear-gradient(180deg, #4b9bff, #2368d8);
+    box-shadow: 0 6px 0 #133f8c, 0 10px 20px rgba(0,0,0,.35); margin: 6px 0; transition: transform .08s;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #133f8c; }
+  .btn.alt { background: linear-gradient(180deg, #ffd54a, #f0a610); color: #3a2400; box-shadow: 0 6px 0 #a06a00, 0 10px 20px rgba(0,0,0,.35); font-size: 20px; padding: 10px 30px; }
+  .btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .ups { width: 100%; max-width: 360px; background: var(--panel); border-radius: 16px; padding: 12px; margin: 12px 0 14px; }
+  .ups-head { display: flex; justify-content: space-between; align-items: center; margin: 0 4px 8px; font-weight: 900; }
+  .gold { color: var(--gold); font-weight: 900; }
+  .up { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 12px; background: rgba(255,255,255,.06); margin-top: 6px; text-align: left; }
+  .up .ic { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-size: 22px; background: rgba(45,127,240,.35); flex: none; }
+  .up .tx { flex: 1; min-width: 0; }
+  .up .tx b { display: block; font-size: 15px; }
+  .up .tx small { opacity: .75; font-size: 12px; }
+  .up button {
+    flex: none; border: 0; border-radius: 10px; padding: 8px 10px; min-width: 78px; font-weight: 900; font-family: inherit; font-size: 14px;
+    background: linear-gradient(180deg, #ffd54a, #f0a610); color: #3a2400; cursor: pointer; box-shadow: 0 3px 0 #a06a00;
+  }
+  .up button:disabled { filter: grayscale(1); opacity: .5; cursor: default; }
+  .hint { font-size: 13px; opacity: .75; margin-top: 10px; line-height: 1.5; }
+  #pauseBtn {
+    position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border-radius: 10px; border: 0;
+    background: rgba(10,25,50,.55); color: #fff; font-size: 16px; cursor: pointer; display: none;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="c" aria-label="게임 화면"></canvas>
+    <button id="pauseBtn" aria-label="일시정지">❚❚</button>
+
+    <div class="overlay show" id="menu">
+      <h1 class="title">레인 <b>레기온</b></h1>
+      <div class="sub">좌우로 움직여 병력을 불리고, 몰려오는 적을 섬멸하라!</div>
+      <button class="btn" id="startBtn">출격</button>
+      <div class="ups" data-ups></div>
+      <div class="hint">드래그 · ← → · A/D 로 이동<br>게이트를 쏘면 숫자가 커집니다</div>
+    </div>
+
+    <div class="overlay" id="result">
+      <div class="big-result" id="resTitle">승리!</div>
+      <div id="resSub" class="sub" style="margin-bottom:0"></div>
+      <div class="stats">
+        <div class="stat"><small>획득 골드</small><span id="resGold" class="gold">0</span></div>
+        <div class="stat"><small>처치</small><span id="resKills">0</span></div>
+        <div class="stat"><small>최대 병력</small><span id="resPeak">0</span></div>
+      </div>
+      <button class="btn" id="nextBtn">다음 스테이지</button>
+      <div class="ups" data-ups></div>
+      <button class="btn alt" id="homeBtn">메인으로</button>
+    </div>
+
+    <div class="overlay" id="pause">
+      <div class="big-result">일시정지</div>
+      <button class="btn" id="resumeBtn">계속하기</button>
+      <button class="btn alt" id="quitBtn">포기하기</button>
+    </div>
+  </div>
+</div>
+<script src="core.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
