@@ -19,7 +19,10 @@
   // ---------- save ----------
   const KEY = 'laneLegionSave.v1';
   function load() {
-    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.up) return Object.assign(C.defaultSave(), s); } catch (e) {}
+    try {
+      const s = JSON.parse(localStorage.getItem(KEY));
+      if (s && s.up) { const d = C.defaultSave(); return Object.assign(d, s, { up: Object.assign(d.up, s.up) }); }
+    } catch (e) {}
     return C.defaultSave();
   }
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }
@@ -66,7 +69,7 @@
 
   // ---------- UI ----------
   const $ = id => document.getElementById(id);
-  const ICONS = { dmg: '🏹', rate: '⚡', troops: '🛡️' };
+  const ICONS = { dmg: '🏹', rate: '⚡', troops: '🛡️', skill: '✨' };
   function renderUps() {
     document.querySelectorAll('[data-ups]').forEach(box => {
       let html = `<div class="ups-head"><span>업그레이드</span><span class="gold">● ${C.fmt(save.gold)}</span></div>`;
@@ -192,11 +195,30 @@
       if (z < zN) continue;
       ctx.moveTo(px(-1, z), py(z)); ctx.lineTo(px(1, z), py(z));
     }
-    for (let k = -3; k <= 3; k++) {
-      const x = k / 3.5;
+    for (const x of [-0.83, -0.5, -0.17, 0.17, 0.5, 0.83]) {
       ctx.moveTo(px(x, zN), py(zN)); ctx.lineTo(px(x, zF), py(zF));
     }
     ctx.stroke();
+    // lane tints: troops (blue) | monsters (red) | abilities (gold)
+    const E = C.LANE_EDGE;
+    ctx.fillStyle = 'rgba(70,150,255,.20)'; quad(-1, -E, zN, zF);
+    ctx.fillStyle = 'rgba(224,57,47,.07)'; quad(-E, E, zN, zF);
+    ctx.fillStyle = 'rgba(255,190,40,.12)'; quad(E, 1, zN, zF);
+    // lane dividers: low stone curbs
+    for (const x of [-E, E]) {
+      ctx.fillStyle = '#b9a684'; quad(x - 0.025, x + 0.025, zN, zF);
+      ctx.fillStyle = '#f3ead7'; quad(x - 0.012, x + 0.012, zN, zF);
+    }
+    // lane signs near the squad line
+    if (!run || run.time < 4) {
+      const a = run ? Math.max(0, 1 - run.time / 4) : 1;
+      ctx.globalAlpha = a * 0.9;
+      ctx.font = "15px 'Black Han Sans', sans-serif"; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      [['병력', -C.LANE_W, '#1a4fa6'], ['몬스터', 0, '#9e1d17'], ['특수능력', C.LANE_W, '#9a6a00']].forEach(([t, x, c]) => {
+        ctx.fillStyle = c; ctx.fillText(t, px(x, 3), py(3));
+      });
+      ctx.globalAlpha = 1;
+    }
 
     // banners on walls
     const boff = run ? run.scroll % 6 : (t * 3) % 6;
@@ -220,34 +242,65 @@
     ctx.closePath(); ctx.fill();
   }
 
-  function drawGate(g) {
-    const s = sc(g.z);
-    if (g.z < -2.5) return;
-    const x0 = g.side * 0.05, x1 = g.side * 0.97;
-    const Y = py(g.z), h = 0.62 * RW * s;
-    const L = Math.min(px(x0, g.z), px(x1, g.z)), R = Math.max(px(x0, g.z), px(x1, g.z));
-    const positive = g.kind === 'mul' || g.v > 0;
-    const col = g.kind === 'mul' ? [255, 196, 40] : positive ? [45, 140, 255] : [230, 60, 50];
-    const a = g.used ? 0.25 : 0.62;
-    ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${a + g.flash * 0.25})`;
-    ctx.fillRect(L, Y - h, R - L, h);
-    ctx.strokeStyle = `rgba(255,255,255,${g.used ? 0.3 : 0.85})`;
-    ctx.lineWidth = Math.max(1, 3 * s);
-    ctx.strokeRect(L, Y - h, R - L, h);
-    // posts
-    ctx.fillStyle = `rgba(${col[0] * 0.6 | 0},${col[1] * 0.6 | 0},${col[2] * 0.6 | 0},${g.used ? 0.4 : 1})`;
-    ctx.fillRect(L - 3 * s, Y - h - 4 * s, 6 * s, h + 4 * s);
-    ctx.fillRect(R - 3 * s, Y - h - 4 * s, 6 * s, h + 4 * s);
-    // label
-    const txt = g.kind === 'mul' ? '×' + g.v : (g.v > 0 ? '+' : '') + g.v;
-    const fs = Math.max(8, 58 * s * (1 + g.flash * 0.12));
+  function drawBlock(b) {
+    if (b.z < -2.5 || b.z > C.ZFAR + 2) return;
+    const s = sc(b.z);
+    const Y = py(b.z), h = 0.5 * RW * s;
+    const L = px(-0.96, b.z), Rr = px(-0.38, b.z);
+    const positive = b.kind === 'mul' || b.v > 0;
+    const col = b.kind === 'mul' ? [255, 196, 40] : positive ? [45, 140, 255] : [230, 60, 50];
+    const a = b.used ? 0.22 : 0.88;
+    // block body with a lighter top face
+    const top = 10 * s;
+    ctx.fillStyle = `rgba(${col[0] * 0.55 | 0},${col[1] * 0.55 | 0},${col[2] * 0.55 | 0},${a})`;
+    ctx.fillRect(L, Y - h, Rr - L, h);
+    ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${a})`;
+    ctx.fillRect(L, Y - h - top * 0.2, Rr - L, h - top * 0.6);
+    if (b.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${b.flash * 0.35})`; ctx.fillRect(L, Y - h, Rr - L, h); }
+    ctx.strokeStyle = `rgba(255,255,255,${b.used ? 0.25 : 0.9})`;
+    ctx.lineWidth = Math.max(1, 2.5 * s);
+    ctx.strokeRect(L, Y - h - top * 0.2, Rr - L, h - top * 0.6);
+    const txt = b.kind === 'mul' ? '×' + b.v : (b.v > 0 ? '+' : '') + b.v;
+    label(txt, (L + Rr) / 2, Y - h * 0.55, Math.max(8, 54 * s * (1 + b.flash * 0.12)));
+  }
+
+  function drawCrate(c) {
+    if (c.z > C.ZFAR + 2) return;
+    const s = sc(c.z);
+    const ab = C.ABILITIES[c.ability];
+    const X = px(C.LANE_W, c.z), Y = py(c.z);
+    const w = 0.5 * RW * s, h = 0.48 * RW * s;
+    const shake = c.flash > 0 ? (Math.random() - 0.5) * 3 * s : 0;
+    // wooden crate
+    ctx.fillStyle = '#8a5a2b'; ctx.fillRect(X - w / 2 + shake, Y - h, w, h);
+    ctx.fillStyle = '#b07a3f'; ctx.fillRect(X - w / 2 + 3 * s + shake, Y - h + 3 * s, w - 6 * s, h - 6 * s);
+    ctx.strokeStyle = '#6b4320'; ctx.lineWidth = Math.max(1, 3 * s);
+    ctx.beginPath();
+    ctx.moveTo(X - w / 2 + shake, Y - h); ctx.lineTo(X + w / 2 + shake, Y);
+    ctx.moveTo(X + w / 2 + shake, Y - h); ctx.lineTo(X - w / 2 + shake, Y);
+    ctx.stroke();
+    // ability badge
+    const br = Math.max(4, 15 * s);
+    ctx.fillStyle = ab.color;
+    ctx.beginPath(); ctx.arc(X + shake, Y - h * 0.55, br, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1, 2 * s); ctx.stroke();
+    ctx.font = `${br * 1.15}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff'; ctx.fillText(ab.icon, X + shake, Y - h * 0.55 + br * 0.05);
+    // hp bar + name
+    const bw = w * 1.05;
+    ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(X - bw / 2, Y - h - 12 * s, bw, Math.max(2, 6 * s));
+    ctx.fillStyle = ab.color; ctx.fillRect(X - bw / 2, Y - h - 12 * s, bw * Math.max(0, c.hp / c.maxHp), Math.max(2, 6 * s));
+    if (s > 0.35) label(ab.name, X, Y - h - 24 * s, 15 * s * 1.3);
+  }
+
+  function label(txt, x, y, fs) {
     ctx.font = `${fs}px 'Black Han Sans', sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineWidth = Math.max(2, fs * 0.14);
     ctx.strokeStyle = 'rgba(10,20,40,.75)';
-    ctx.strokeText(txt, (L + R) / 2, Y - h / 2);
+    ctx.strokeText(txt, x, y);
     ctx.fillStyle = '#fff';
-    ctx.fillText(txt, (L + R) / 2, Y - h / 2);
+    ctx.fillText(txt, x, y);
   }
 
   function drawEnemy(e) {
@@ -327,10 +380,12 @@
       const z0 = a.z, z1 = a.z + 0.7;
       const s = sc(z0);
       const y0 = py(z0) - 14 * s, y1 = py(z1) - 14 * sc(z1);
-      ctx.strokeStyle = 'rgba(120,200,255,.6)'; ctx.lineWidth = Math.max(1.5, 6 * s);
-      ctx.beginPath(); ctx.moveTo(px(a.x, z0), y0); ctx.lineTo(px(a.x, z1), y1); ctx.stroke();
+      ctx.strokeStyle = a.kind === 'fire' ? 'rgba(255,120,30,.75)' : a.kind === 'pierce' ? 'rgba(185,140,255,.7)' : 'rgba(120,200,255,.6)';
+      ctx.lineWidth = Math.max(1.5, (a.kind === 'fire' ? 8 : 6) * s);
+      const x1 = a.x + a.vx * 0.7;
+      ctx.beginPath(); ctx.moveTo(px(a.x, z0), y0); ctx.lineTo(px(x1, z1), y1); ctx.stroke();
       ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(1, 2.2 * s);
-      ctx.beginPath(); ctx.moveTo(px(a.x, z0), y0); ctx.lineTo(px(a.x, z1), y1); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px(a.x, z0), y0); ctx.lineTo(px(x1, z1), y1); ctx.stroke();
     }
   }
 
@@ -356,6 +411,29 @@
           const a = i / n * Math.PI * 2;
           ctx.beginPath(); ctx.arc(X + Math.cos(a) * R, Y - 8 * s + Math.sin(a) * R * 0.5, Math.max(1, (f.big ? 6 : 3) * s * (1 - p)), 0, Math.PI * 2); ctx.fill();
         }
+        ctx.globalAlpha = 1;
+      } else if (f.kind === 'bolt') {
+        ctx.globalAlpha = 1 - p;
+        ctx.strokeStyle = '#d9f6ff'; ctx.lineWidth = 3;
+        ctx.beginPath();
+        let yy = 70, xx = X + (Math.random() - 0.5) * 30;
+        ctx.moveTo(xx, yy);
+        const steps = 6;
+        for (let i = 1; i <= steps; i++) {
+          const ty = yy + (Y - 14 * s - yy) * i / steps;
+          ctx.lineTo(X + (i < steps ? (Math.random() - 0.5) * 24 : 0), ty);
+        }
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(200,240,255,.6)';
+        ctx.beginPath(); ctx.arc(X, Y - 10 * s, 18 * s + 4, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+      } else if (f.kind === 'banner') {
+        const a = p < 0.15 ? p / 0.15 : p > 0.75 ? (1 - p) / 0.25 : 1;
+        ctx.globalAlpha = a;
+        ctx.fillStyle = 'rgba(10,20,45,.7)';
+        roundRect(W / 2 - 120, 150, 240, 50, 16); ctx.fill();
+        ctx.font = "26px 'Black Han Sans', sans-serif";
+        ctx.fillStyle = f.color; ctx.fillText(f.text, W / 2, 176);
         ctx.globalAlpha = 1;
       } else if (f.kind === 'ring') {
         ctx.globalAlpha = 1 - p;
@@ -392,6 +470,20 @@
       ctx.fillStyle = 'rgba(10,25,55,.5)'; roundRect(bx, by, bw, 10, 5); ctx.fill();
       ctx.fillStyle = '#ffcc2e'; roundRect(bx + 1, by + 1, Math.max(8, (bw - 2) * C.progress(run)), 8, 4); ctx.fill();
     }
+    // active special abilities
+    let ax = 20;
+    for (const k in run.abilities) {
+      const left = run.abilities[k];
+      if (left <= 0) continue;
+      const ab = C.ABILITIES[k];
+      ctx.fillStyle = 'rgba(10,25,55,.7)'; roundRect(ax, 84, 64, 30, 10); ctx.fill();
+      ctx.fillStyle = ab.color; roundRect(ax, 110, 64 * Math.min(1, left / run.st.skillTime), 4, 2); ctx.fill();
+      ctx.font = '16px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff'; ctx.fillText(ab.icon, ax + 6, 99);
+      ctx.font = "15px 'Black Han Sans', sans-serif";
+      ctx.fillText(Math.ceil(left) + 's', ax + 30, 100);
+      ax += 70;
+    }
   }
 
   function render() {
@@ -407,7 +499,8 @@
     if (!run) return;
     // painter's order: far → near
     const items = [];
-    for (const g of run.gates) items.push({ z: g.z + 0.001, f: () => drawGate(g) });
+    for (const b of run.blocks) items.push({ z: b.z + 0.001, f: () => drawBlock(b) });
+    for (const c of run.crates) items.push({ z: c.z + 0.002, f: () => drawCrate(c) });
     for (const e of run.enemies) items.push({ z: e.z, f: () => drawEnemy(e) });
     items.sort((a, b) => b.z - a.z);
     for (const it of items) if (it.z > 0.6) it.f();
