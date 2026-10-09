@@ -21,7 +21,7 @@
 
   // ---------- meta progress ----------
   function defaultSave() {
-    return { gold: 0, level: 1, best: 1, up: { dmg: 0, rate: 0, troops: 0, skill: 0 } };
+    return { gold: 0, level: 1, best: 1, specialCharges: 0, up: { dmg: 0, rate: 0, troops: 0, skill: 0 } };
   }
   const UPGRADES = {
     dmg:    { name: '화력',      desc: '화살 피해 +20%',        base: 40, growth: 1.55 },
@@ -53,6 +53,32 @@
     lightning: { name: '낙뢰',      icon: '🌩', color: '#9fe8ff' },  // periodic strikes
   };
   const ABILITY_KEYS = Object.keys(ABILITIES);
+  const SPECIAL_COST = 60;
+  function buySpecial(save) {
+    if (save.gold < SPECIAL_COST || (save.specialCharges || 0) >= 99) return false;
+    save.gold -= SPECIAL_COST;
+    save.specialCharges = (save.specialCharges || 0) + 1;
+    return true;
+  }
+  function useSpecial(run, save) {
+    if (!run || run.state !== 'play' || !(save.specialCharges > 0)) return false;
+    save.specialCharges--;
+    const damage = 35 * hpScale(run.L) * (1 + (save.up.skill || 0) * .15);
+    for (const e of run.enemies) {
+      if (!e.alive || e.z > ARROW_RANGE || e.z < -1) continue;
+      damageEnemy(run, e, e.type === 'boss' ? e.maxHp * .3 : damage);
+      addFx(run, { kind: 'bolt', x: e.x, z: e.z, t: 0, life: .55 });
+    }
+    for (const c of run.crates) {
+      if (!c.alive || c.z > ARROW_RANGE || c.z < -1) continue;
+      hitCrate(run, c, damage);
+      addFx(run, { kind: 'bolt', x: laneCenter(1), z: c.z, t: 0, life: .55 });
+    }
+    run.shake = Math.max(run.shake, .45);
+    addFx(run, { kind: 'shockwave', x: run.sx, z: 0, t: 0, life: .65, color: '#57d9ff' });
+    addFx(run, { kind: 'banner', t: 0, life: 1.3, text: '⚡ 낙뢰 폭격!', color: '#57d9ff', attack: true });
+    return true;
+  }
 
   // ---------- difficulty curve ----------
   function hpScale(L) { return Math.pow(1.27, L - 1); }
@@ -153,12 +179,21 @@
     return { type, x, z, r: 0.05, hp, maxHp: hp, power: 1, flash: 0, alive: true, walk: Math.random() * 6 };
   }
 
-  function addFx(run, fx) { if (run.fx.length < 320) { fx.seed = Math.random() * 1000; run.fx.push(fx); } }
+  function addFx(run, fx) {
+    if (run.fx.length >= 320 && (fx.kind === 'banner' || fx.kind === 'shockwave')) run.fx.shift();
+    if (run.fx.length < 320) { fx.seed = Math.random() * 1000; run.fx.push(fx); }
+  }
 
   function damageEnemy(run, e, dmg) {
+    impact(run, e, e.x, '#ffbd36');
     e.hp -= dmg; e.flash = 1;
     if (e.type === 'boss') addFxDmg(run, e, dmg);
     if (e.hp <= 0 && e.alive) killEnemy(run, e);
+  }
+  function impact(run, obj, x, color) {
+    if (obj._impactT != null && run.time - obj._impactT < .075) return;
+    obj._impactT = run.time;
+    addFx(run, { kind: 'impact', x, z: obj.z, t: 0, life: .32, color, big: obj.type === 'boss' || obj.type === 'brute' });
   }
 
   function killEnemy(run, e) {
@@ -368,6 +403,7 @@
   }
 
   function hitBlock(run, b, dmg) {
+    impact(run, b, laneCenter(-1), b.v < 0 ? '#ff8b36' : '#51d5ff');
     const hs = hpScale(run.L);
     b.prog += dmg; b.flash = 1;
     for (let guard = 0; guard < 50; guard++) {
@@ -387,6 +423,7 @@
   }
 
   function hitCrate(run, c, dmg) {
+    impact(run, c, laneCenter(1), '#ffd64b');
     c.hp -= dmg; c.flash = 1;
     if (c.hp <= 0 && c.alive) {
       c.alive = false;
@@ -421,9 +458,10 @@
   }
 
   const api = {
-    ZFAR, LANE_EDGE, LANE_W, UPGRADES, ABILITIES, defaultSave, upgradeCost, stats, createRun, update,
+    ZFAR, LANE_EDGE, LANE_W, UPGRADES, ABILITIES, SPECIAL_COST, buySpecial, useSpecial, defaultSave, upgradeCost, stats, createRun, update,
     squadRadius, progress, fmt, buildLevel, levelSpeed, laneOf, laneCenter,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.LaneCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);
+

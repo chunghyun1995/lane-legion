@@ -40,7 +40,7 @@
     function cube(color, x, y, z, sx, sy, sz, parent) { return mesh(box, mat(color), x, y, z, sx, sy, sz, parent); }
     const sea = cube('#2eabb9', 0, -1.5, -50, 240, 0.3, 240); sea.castShadow = false;
     cube('#ac9777', 0, -0.8, -55, 20.5, 1.4, 130);
-    for (let i = -1; i <= 1; i++) cube(['#a9cbd2', '#d6c4a5', '#d8c798'][i + 1], i * 6, -0.06, -55, 5.94, 0.2, 130);
+    for (let i = -1; i <= 1; i++) cube(['#91b5bc', '#b4a68b', '#c3b184'][i + 1], i * 6, -0.06, -55, 5.94, 0.2, 130);
     for (const x of [-3, 3]) cube('#f4e8cf', x, 0.04, -55, 0.09, 0.08, 130);
     const paving = new T.Group(); scene.add(paving);
     for (let i = 0; i < 48; i++) cube('#b3a78f', 0, 0.048, -i * 2.5, 18, 0.015, 0.035, paving);
@@ -157,7 +157,9 @@
       const material = new T.SpriteMaterial({ map, depthTest: true }); material.userData.dynamic = true;
       const s = new T.Sprite(material); s.scale.set(4.6, 2.3, 1); return s;
     }
-    const arrowMesh = new T.InstancedMesh(box, mat('#ffe8ac', .3), 1500); arrowMesh.frustumCulled = false; scene.add(arrowMesh);
+    const arrowMesh = new T.InstancedMesh(box, new T.MeshBasicMaterial({color:'#ffffff'}), 1500); arrowMesh.frustumCulled = false; scene.add(arrowMesh);
+    const sparks = new T.InstancedMesh(cone, new T.MeshBasicMaterial({color:'#ffffff', toneMapped:false}), 2400);
+    sparks.frustumCulled = false; sparks.instanceMatrix.setUsage(T.DynamicDrawUsage); scene.add(sparks);
     const shield = mesh(new T.SphereGeometry(1, 20, 12), new T.MeshBasicMaterial({color:'#70cde9', transparent:true, opacity:.17, depthWrite:false, wireframe:true}), 0, .3, 0, 3, 2, 2);
     shield.castShadow = false;
     const v = new T.Vector3();
@@ -206,9 +208,21 @@
         bows.count = bowCount; bows.instanceMatrix.needsUpdate = true;
         const arrows = run ? run.arrows.slice(0, 1500) : []; arrowMesh.count = arrows.length;
         arrows.forEach((a, i) => {
-          dummy.position.set(a.x * 9, .85, -a.z * .65); dummy.rotation.set(0, -Math.atan(a.vx * 9 / .65), 0); dummy.scale.set(.045, .045, .6); dummy.updateMatrix(); arrowMesh.setMatrixAt(i, dummy.matrix);
-          tint.set(a.kind === 'fire' ? '#ff812b' : a.kind === 'pierce' ? '#c493ff' : '#ffe8ac'); arrowMesh.setColorAt(i, tint);
+          dummy.position.set(a.x * 9, .85, -a.z * .65); dummy.rotation.set(0, -Math.atan(a.vx * 9 / .65), 0); dummy.scale.set(.10, .075, 1.05); dummy.updateMatrix(); arrowMesh.setMatrixAt(i, dummy.matrix);
+          tint.set(a.kind === 'fire' ? '#b02c00' : a.kind === 'pierce' ? '#542389' : '#080b10'); arrowMesh.setColorAt(i, tint);
         }); arrowMesh.instanceMatrix.needsUpdate = true; if (arrowMesh.instanceColor) arrowMesh.instanceColor.needsUpdate = true;
+        let sparkCount = 0;
+        if (run) for (const f of run.fx) {
+          if (f.kind !== 'impact' && f.kind !== 'burst') continue;
+          const progress = f.t / f.life, n = f.big ? 18 : 10;
+          for (let i = 0; i < n && sparkCount < 2400; i++) {
+            const a = i * 2.39996 + (f.seed || 0), speed = (f.big ? 5 : 3) * (.6 + (i % 4) * .2);
+            dummy.position.set(f.x * 9 + Math.cos(a) * speed * f.t, Math.max(.06, .8 + Math.sin(i * 2.3) * f.t * 3 + f.t * 2 - f.t * f.t * 7), -f.z * .65 + Math.sin(a) * speed * f.t);
+            dummy.rotation.set(a, a + f.t * 9, a); dummy.scale.set(.1 * (1 - progress), .38 * (1 - progress), .1 * (1 - progress)); dummy.updateMatrix(); sparks.setMatrixAt(sparkCount, dummy.matrix);
+            tint.set(i % 3 ? f.color : '#ffedaa'); sparks.setColorAt(sparkCount++, tint);
+          }
+        }
+        sparks.count = sparkCount; sparks.instanceMatrix.needsUpdate = true; if (sparks.instanceColor) sparks.instanceColor.needsUpdate = true;
         shield.visible = !!(run && run.abilities.shield > 0); shield.position.x = sx * 9;
         shield.rotation.y = clock * .3;
         camera.position.x = run && run.shake > 0 ? Math.sin(clock * 65) * run.shake * .35 : 0;

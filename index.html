@@ -158,8 +158,19 @@
   }
   #pauseBtn svg { width: 14px; height: 14px; }
   #pauseBtn.show { display: grid; }
+  #specialBtn { position: absolute; top: 13.16%; right: 12px; z-index: 2; min-height: 44px; padding: 9px 13px; border: 2px solid #a2efff; border-radius: 12px; background: linear-gradient(135deg, #114f83, #0b879e); box-shadow: 0 0 18px #4bcde975, inset 0 1px 0 #ffffff55; color: #fff; font: 900 13px 'Noto Sans KR', sans-serif; cursor: pointer; }
+  #specialBtn:active { transform: scale(.96); }
+  #specialBtn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .shop-title { font: 36px 'Black Han Sans', sans-serif; margin: 0 0 10px; }
+  .special-card { width: 100%; max-width: 340px; background: linear-gradient(145deg, #123955, #11283f); border: 1px solid #57d9ff88; border-radius: 16px; padding: 16px; text-align: left; }
+  .special-card h3 { margin: 0 0 6px; color: #83e5ff; font-size: 20px; }
+  .special-card p { margin: 0 0 12px; font-size: 12px; line-height: 1.7; color: #c6d8e8; }
+  .special-stock { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 12px; }
+  #buySpecialBtn { width: 100%; font-size: 19px; padding: 9px; }
+  #buySpecialBtn:disabled { filter: grayscale(1); opacity: .45; cursor: default; }
   .overlay { overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; justify-content: safe center; }
   @media (max-height: 700px) {
+    #menuUps { display: none; }
     #menu:has(#saveCard:not([hidden])) .emblem,
     #menu:has(#saveCard:not([hidden])) .tagline { display: none; }
     .edition { margin: 6px 0 10px; }
@@ -176,6 +187,7 @@
     <canvas id="scene3d" aria-hidden="true"></canvas>
     <canvas id="c" aria-label="3D 게임 화면"></canvas>
     <button id="pauseBtn" aria-label="일시정지"><svg viewBox="0 0 14 14" fill="#fff"><rect x="2" y="1" width="3.5" height="12" rx="1"/><rect x="8.5" y="1" width="3.5" height="12" rx="1"/></svg></button>
+    <button id="specialBtn" hidden title="낙뢰 폭격 1회 사용">⚡ 특수공격</button>
 
     <!-- title -->
     <div class="overlay show" id="menu">
@@ -203,6 +215,7 @@
         <button class="btn" id="continueBtn" hidden>이어하기<small id="continueSub">스테이지 1부터</small></button>
         <button class="btn" id="startBtn">게임 시작</button>
         <button class="btn ghost" id="newBtn" hidden>새로하기</button>
+        <button class="btn ghost" id="shopBtn">상점 · 특수공격</button>
       </div>
       <div class="ups" data-ups id="menuUps" hidden></div>
       <div class="hint">드래그 또는 <span class="kbd">←</span> <span class="kbd">→</span> 로 이동 · 일시정지 <span class="kbd">Esc</span></div>
@@ -219,7 +232,19 @@
       </div>
       <div class="btns"><button class="btn" id="nextBtn">다음 스테이지</button></div>
       <div class="ups" data-ups></div>
-      <div class="btns" style="margin-top:12px"><button class="btn ghost" id="homeBtn">메인으로</button></div>
+      <div class="btns" style="margin-top:12px"><button class="btn ghost" id="resultShopBtn">상점 · 특수공격</button><button class="btn ghost" id="homeBtn">메인으로</button></div>
+    </div>
+
+    <div class="overlay" id="shop">
+      <h2 class="shop-title">전투 상점</h2>
+      <div class="special-card">
+        <h3>⚡ 낙뢰 폭격</h3>
+        <p>전방 사거리 안의 모든 적과 상자에 광역 공격.<br>적장에게 최대 체력의 30% 피해를 줍니다.<br>구매 후 전투 화면 우측 상단 버튼을 눌러 사용하세요.</p>
+        <div class="special-stock"><span id="specialStock">보유 0회</span><span class="coin" id="shopGold">0</span></div>
+        <button class="btn gold" id="buySpecialBtn">60 골드 · 1회 구매</button>
+      </div>
+      <div class="ups" data-ups></div>
+      <div class="btns" style="margin-top:16px"><button class="btn ghost" id="closeShopBtn">돌아가기</button></div>
     </div>
 
     <!-- pause -->
@@ -244,10 +269,10 @@
     </div>
   </div>
 </div>
-<script src="core.js"></script>
+<script src="core.js?v=3d2"></script>
 <script src="vendor/three.min.js"></script>
-<script src="render3d.js?v=3d1"></script>
-<script src="main.js?v=3d1"></script>
+<script src="render3d.js?v=3d2"></script>
+<script src="main.js?v=3d2"></script>
 </body>
 </html>
 

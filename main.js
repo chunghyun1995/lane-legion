@@ -36,7 +36,7 @@
   }
   function persist() { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }
   function hasProgress(s) {
-    return s.level > 1 || s.gold > 0 || Object.values(s.up).some(v => v > 0);
+    return s.level > 1 || s.gold > 0 || s.specialCharges > 0 || Object.values(s.up).some(v => v > 0);
   }
   let save = load();
 
@@ -327,6 +327,16 @@
   // =====================================================================
   const $ = id => document.getElementById(id);
   const ICONS = { dmg: '🏹', rate: '⚡', troops: '🛡️', skill: '✨' };
+  function refreshSpecial() {
+    const charges = save.specialCharges || 0;
+    $('specialBtn').hidden = mode !== 'play' || charges <= 0;
+    $('specialBtn').textContent = `⚡ 특수공격 ×${charges}`;
+    $('specialStock').textContent = `보유 ${charges}회`;
+    $('buySpecialBtn').disabled = save.gold < C.SPECIAL_COST || charges >= 99;
+    $('shopGold').textContent = C.fmt(save.gold);
+  }
+  let shopFrom = 'menu';
+  function openShop() { shopFrom = mode === 'result' ? 'result' : 'menu'; renderUps(); refreshSpecial(); showOverlay('shop'); }
   function renderUps() {
     document.querySelectorAll('[data-ups]').forEach(box => {
       let html = `<div class="ups-head"><span>업그레이드</span><span class="coin">${C.fmt(save.gold)}</span></div><div class="up-grid">`;
@@ -337,6 +347,7 @@
       }
       box.innerHTML = html + '</div>';
     });
+    refreshSpecial();
   }
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-buy]');
@@ -345,8 +356,9 @@
     if (save.gold >= cost) { save.gold -= cost; save.up[k] = (save.up[k] || 0) + 1; persist(); refreshMenu(); }
   });
   function showOverlay(id) {
-    ['menu', 'result', 'pause', 'confirm'].forEach(o => { $(o).classList.toggle('show', o === id); $(o).inert = o !== id; });
+    ['menu', 'result', 'pause', 'confirm', 'shop'].forEach(o => { $(o).classList.toggle('show', o === id); $(o).inert = o !== id; });
     $('pauseBtn').classList.toggle('show', !id && mode === 'play');
+    refreshSpecial();
   }
   function refreshMenu() {
     const prog = hasProgress(save);
@@ -402,6 +414,15 @@
   $('pauseBtn').onclick = togglePause;
   $('resumeBtn').onclick = togglePause;
   $('quitBtn').onclick = () => { run.state = 'lose'; endRun(); };
+  $('shopBtn').onclick = openShop;
+  $('resultShopBtn').onclick = openShop;
+  $('closeShopBtn').onclick = () => { refreshMenu(); showOverlay(shopFrom); };
+  $('buySpecialBtn').onclick = () => {
+    if (C.buySpecial(save)) { persist(); refreshMenu(); refreshSpecial(); }
+  };
+  $('specialBtn').onclick = () => {
+    if (mode === 'play' && C.useSpecial(run, save)) { persist(); refreshSpecial(); }
+  };
 
   // =====================================================================
   // world
@@ -742,11 +763,11 @@
         ctx.lineWidth = Math.max(2, 9 * s0);
         ctx.beginPath(); ctx.moveTo(X0, Y0); ctx.lineTo(X1, Y1); ctx.stroke();
       }
-      ctx.strokeStyle = '#8a5a2b'; ctx.lineWidth = Math.max(0.8, 2.2 * s0);
+      ctx.strokeStyle = '#080b10'; ctx.lineWidth = Math.max(1.8, 3.8 * s0);
       ctx.beginPath(); ctx.moveTo(X0, Y0); ctx.lineTo(X1, Y1); ctx.stroke();
-      ctx.fillStyle = a.kind === 'fire' ? '#ffd27a' : '#f2f5fa';
+      ctx.fillStyle = a.kind === 'fire' ? '#b02c00' : '#080b10';
       ctx.beginPath(); ctx.arc(X1, Y1, Math.max(0.8, 2.4 * s1), 0, TAU); ctx.fill();
-      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(0.8, 2.6 * s0);
+      ctx.strokeStyle = '#080b10'; ctx.lineWidth = Math.max(1.2, 3.2 * s0);
       ctx.beginPath(); ctx.moveTo(X0 - 2.5 * s0, Y0 + 1); ctx.lineTo(X0 + 2.5 * s0, Y0 + 1); ctx.stroke();
     }
   }
@@ -762,6 +783,26 @@
         const pop = p < 0.12 ? 0.6 + p / 0.12 * 0.4 : 1;
         label(f.text, X, Y - 40 * s - p * 46, fs * pop, f.color);
         ctx.globalAlpha = 1;
+      } else if (f.kind === 'impact') {
+        const pos = view3d ? view3d.project(f.x, f.z, .9) : {x:X, y:Y - 12 * s};
+        const size = (f.big ? 24 : 17) * Math.max(.65, s), radius = size * (.45 + p * 1.9);
+        ctx.globalAlpha = (1 - p) * .95;
+        ctx.strokeStyle = f.color; ctx.lineWidth = 3.5 * (1 - p) + 1;
+        ctx.beginPath(); ctx.arc(pos.x, pos.y, radius, 0, TAU); ctx.stroke();
+        ctx.fillStyle = p < .3 ? '#fff4bd' : f.color;
+        ctx.shadowColor = f.color; ctx.shadowBlur = 12 * (1 - p);
+        for (let i = 0; i < 8; i++) {
+          const a = i * TAU / 8 + (f.seed || 0);
+          ctx.beginPath();
+          ctx.moveTo(pos.x + Math.cos(a) * radius * .45, pos.y + Math.sin(a) * radius * .45);
+          ctx.lineTo(pos.x + Math.cos(a + .12) * radius, pos.y + Math.sin(a + .12) * radius);
+          ctx.lineTo(pos.x + Math.cos(a - .12) * radius, pos.y + Math.sin(a - .12) * radius); ctx.fill();
+        }
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      } else if (f.kind === 'shockwave') {
+        ctx.globalAlpha = (1 - p) * .22; ctx.fillStyle = f.color; ctx.fillRect(0, 0, W, H);
+        ctx.globalAlpha = 1 - p; ctx.strokeStyle = '#58d9ff'; ctx.lineWidth = 8 * (1 - p) + 2;
+        ctx.beginPath(); ctx.ellipse(X, Y, 30 + p * W * 1.4, 20 + p * H, 0, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
       } else if (f.kind === 'burst') {
         const rnd = srand(Math.floor(f.seed || 1));
         const n = f.big ? 16 : 7;
@@ -822,7 +863,7 @@
       ctx.fillStyle = 'rgba(8,18,40,.82)'; rrect(W / 2 - 130 + sl, y - 26, 260, 52, 18); ctx.fill();
       ctx.strokeStyle = f.color; ctx.lineWidth = 2; ctx.stroke();
       ctx.font = "13px 'Noto Sans KR', sans-serif"; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillText('특수능력 획득', W / 2 + sl, y - 11);
+      ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillText(f.attack ? '특수공격 발동' : '특수능력 획득', W / 2 + sl, y - 11);
       label(f.text, W / 2 + sl, y + 9, 24, f.color);
       ctx.globalAlpha = 1;
     }
@@ -872,20 +913,21 @@
     }
     // active abilities
     let ax = 16;
+    const abilityY = save.specialCharges > 0 ? 180 : 90;
     for (const k in run.abilities) {
       const left = run.abilities[k];
       if (left <= 0) continue;
       const ab = C.ABILITIES[k];
-      ctx.fillStyle = 'rgba(8,20,44,.7)'; rrect(ax, 90, 66, 32, 11); ctx.fill();
+      ctx.fillStyle = 'rgba(8,20,44,.7)'; rrect(ax, abilityY, 66, 32, 11); ctx.fill();
       ctx.strokeStyle = ab.color; ctx.lineWidth = 1.5; ctx.stroke();
-      ctx.save(); rrect(ax, 90, 66, 32, 11); ctx.clip();
+      ctx.save(); rrect(ax, abilityY, 66, 32, 11); ctx.clip();
       ctx.globalAlpha = 0.25; ctx.fillStyle = ab.color;
-      ctx.fillRect(ax, 90, 66 * Math.min(1, left / run.st.skillTime), 32);
+      ctx.fillRect(ax, abilityY, 66 * Math.min(1, left / run.st.skillTime), 32);
       ctx.restore(); ctx.globalAlpha = 1;
       ctx.font = '16px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#fff'; ctx.fillText(ab.icon, ax + 7, 107);
+      ctx.fillStyle = '#fff'; ctx.fillText(ab.icon, ax + 7, abilityY + 17);
       ctx.font = "16px 'Black Han Sans', sans-serif";
-      ctx.fillText(Math.ceil(left) + 's', ax + 32, 107);
+      ctx.fillText(Math.ceil(left) + 's', ax + 32, abilityY + 17);
       ax += 72;
     }
   }
@@ -950,6 +992,7 @@
       if (run.state !== 'play') {
         mode = 'ending';
         $('pauseBtn').classList.remove('show');
+        refreshSpecial();
         setTimeout(endRun, run.state === 'win' ? 1000 : 700);
       }
     } else if (mode === 'ending' && run) {
